@@ -34,6 +34,7 @@
 package fr.paris.lutece.plugins.forms.business;
 
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -54,12 +55,12 @@ import fr.paris.lutece.util.sql.DAOUtil;
 public final class FormQuestionResponseDAO implements IFormQuestionResponseDAO
 {
     // Constants
-    private static final String SQL_QUERY_SELECTALL = "SELECT id_question_response, id_form_response, id_question, id_step, iteration_number FROM forms_question_response";
+    private static final String SQL_QUERY_SELECTALL = "SELECT id_question_response, id_form_response, id_question, id_step, iteration_number, status, update_date_status FROM forms_question_response";
     private static final String SQL_QUERY_SELECT = SQL_QUERY_SELECTALL + " WHERE id_question_response = ?";
     private static final String SQL_QUERY_SELECT_BY_FORM_RESPONSE = SQL_QUERY_SELECTALL + " WHERE id_form_response = ?";
-    private static final String SQL_QUERY_INSERT = "INSERT INTO forms_question_response ( id_form_response, id_question, id_step, iteration_number ) VALUES ( ?, ?, ?, ? ) ";
+    private static final String SQL_QUERY_INSERT = "INSERT INTO forms_question_response ( id_form_response, id_question, id_step, iteration_number, status, update_date_status ) VALUES ( ?, ?, ?, ?, ?, ? ) ";
     private static final String SQL_QUERY_DELETE = "DELETE FROM forms_question_response WHERE id_question_response = ? ";
-    private static final String SQL_QUERY_UPDATE = "UPDATE forms_question_response SET id_form_response = ?, id_question = ?, id_step = ?, iteration_number = ? WHERE id_question_response = ?";
+    private static final String SQL_QUERY_UPDATE = "UPDATE forms_question_response SET id_form_response = ?, id_question = ?, id_step = ?, iteration_number = ?, status = ?, update_date_status = ? WHERE id_question_response = ?";
     private static final String SQL_QUERY_SELECT_BY_QUESTION = SQL_QUERY_SELECTALL + " WHERE id_question = ?";
     private static final String SQL_QUERY_SELECT_BY_RESPONSE_AND_QUESTION = SQL_QUERY_SELECTALL + " WHERE id_form_response = ? AND id_question = ?";
     private static final String SQL_QUERY_SELECT_BY_RESPONSE_AND_STEP = SQL_QUERY_SELECTALL
@@ -82,10 +83,13 @@ public final class FormQuestionResponseDAO implements IFormQuestionResponseDAO
         try ( DAOUtil daoUtil = new DAOUtil( SQL_QUERY_INSERT, Statement.RETURN_GENERATED_KEYS, plugin ) )
         {
             int nIndex = 0;
+            Timestamp timestampCurrentTime = new Timestamp( System.currentTimeMillis( ) );
             daoUtil.setInt( ++nIndex, formQuestionResponse.getIdFormResponse( ) );
             daoUtil.setInt( ++nIndex, formQuestionResponse.getQuestion( ).getId( ) );
             daoUtil.setInt( ++nIndex, formQuestionResponse.getIdStep( ) );
             daoUtil.setInt( ++nIndex, formQuestionResponse.getQuestion( ).getIterationNumber( ) );
+            daoUtil.setBoolean( ++nIndex, formQuestionResponse.isPublished() );
+            daoUtil.setTimestamp( ++nIndex, timestampCurrentTime );
 
             daoUtil.executeUpdate( );
 
@@ -199,6 +203,8 @@ public final class FormQuestionResponseDAO implements IFormQuestionResponseDAO
             daoUtil.setInt( ++nIndex, formQuestionResponse.getQuestion( ).getId( ) );
             daoUtil.setInt( ++nIndex, formQuestionResponse.getIdStep( ) );
             daoUtil.setInt( ++nIndex, formQuestionResponse.getQuestion( ).getIterationNumber( ) );
+            daoUtil.setBoolean( ++nIndex, formQuestionResponse.isPublished() );
+            daoUtil.setTimestamp( ++nIndex, formQuestionResponse.getUpdateStatus() );
 
             daoUtil.setInt( ++nIndex, formQuestionResponse.getId( ) );
 
@@ -490,6 +496,9 @@ public final class FormQuestionResponseDAO implements IFormQuestionResponseDAO
 
         formQuestionResponse.setIdStep( daoUtil.getInt( "id_step" ) );
         question.setIterationNumber( daoUtil.getInt( "iteration_number" ) );
+        
+        formQuestionResponse.setPublished( daoUtil.getBoolean("status") );
+        formQuestionResponse.setUpdateStatus( daoUtil.getTimestamp("update_date_status") );
 
         return formQuestionResponse;
     }

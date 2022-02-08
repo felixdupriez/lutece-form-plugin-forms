@@ -33,6 +33,7 @@
  */
 package fr.paris.lutece.plugins.forms.business;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import fr.paris.lutece.plugins.genericattributes.business.GenericAttributeError;
@@ -52,6 +53,10 @@ public class FormQuestionResponse
     private int _nIdStep;
 
     private List<Response> _entryResponses;
+    
+    private boolean _bPublished;
+    
+    private Timestamp _dateUpdateStatus;
 
     /**
      * @return the _nId
@@ -140,6 +145,40 @@ public class FormQuestionResponse
     public void setEntryResponse( List<Response> entryResponse )
     {
         this._entryResponses = entryResponse;
+    }
+    
+    /**
+     * @return the _bPublished
+     */
+    public boolean isPublished( )
+    {
+        return _bPublished;
+    }
+
+    /**
+     * @param bPublished
+     *            the bPublished to set
+     */
+    public void setPublished( boolean bPublished )
+    {
+        this._bPublished = bPublished;
+    }
+    
+    /**
+     * @return the _dateUpdate
+     */
+    public Timestamp getUpdateStatus( )
+    {
+        return _dateUpdateStatus;
+    }
+
+    /**
+     * @param dateUpdate
+     *            the dateUpdate to set
+     */
+    public void setUpdateStatus( Timestamp dateUpdateStatus )
+    {
+        this._dateUpdateStatus = dateUpdateStatus;
     }
 
     /**
