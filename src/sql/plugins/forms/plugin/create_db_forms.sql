@@ -216,8 +216,6 @@ CREATE TABLE IF NOT EXISTS forms_question_response (
   id_question int default '0' NOT NULL,
   id_step int default '0' NOT NULL,
   iteration_number int default '0',
-  status SMALLINT default 0 NOT NULL,
-  update_date_status timestamp default CURRENT_TIMESTAMP NOT NULL,
   PRIMARY KEY (id_question_response)
 );
 CREATE INDEX idx_fqr_id_form_response on forms_question_response  ( id_form_response );
