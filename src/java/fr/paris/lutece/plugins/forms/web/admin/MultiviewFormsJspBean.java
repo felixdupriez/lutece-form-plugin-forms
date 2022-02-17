@@ -185,6 +185,7 @@ public class MultiviewFormsJspBean extends AbstractJspBean
         if ( _formPanelDisplayActive == null && CollectionUtils.isNotEmpty( _listAuthorizedFormPanelDisplay ) )
         {
             _formPanelDisplayActive = _listAuthorizedFormPanelDisplay.get( 0 );
+            _formPanelDisplayActive.setActive( true );
         }
         Map<String, Object> model = getPaginatedListModel( request, AbstractPaginator.PARAMETER_PAGE_INDEX, listIdFormResponse, buildPaginatorUrl( ),
                 _formPanelDisplayActive.getFormPanel( ).getTotalFormResponseItemCount( ) );
@@ -559,7 +560,7 @@ public class MultiviewFormsJspBean extends AbstractJspBean
      */
     protected static String getMultiviewBaseViewUrl( )
     {
-        return JSP_FORMS_MULTIVIEW + "?view=" + VIEW_MULTIVIEW_FORMS;
+        return "MultiviewForms.jsp?view=" + VIEW_MULTIVIEW_FORMS;
     }
 
     /**
