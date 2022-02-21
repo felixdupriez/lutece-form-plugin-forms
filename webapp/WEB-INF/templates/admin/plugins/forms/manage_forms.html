@@ -74,7 +74,7 @@
                                 	<#assign inactiveBypass=''>
                                 	<#assign color='success'>
                                 <#else>
-                                	<#assign inactiveBypass='&ts='+timestamp+'&token='+inactiveBypassTokens[form.id?string]>
+                                	<#assign inactiveBypass='&ts='+timestamp+'&token_bypass='+inactiveBypassTokens[form.id?string]>
                                 	<#assign color='warning'>
                                 </#if>
                                 <@aButton href='jsp/site/Portal.jsp?page=forms&view=stepView&id_form=${form.id}&init=true${inactiveBypass}' title='#i18n{forms.manageForm.FOLink.label} ${form.title}' hideTitle=['all'] params='target="_blank"' buttonIcon='external-link' size='sm' color=color />
@@ -144,6 +144,7 @@
 	<@modalHeader modalTitle='#i18n{forms.manageForm.buttonImport}' />
 	<@modalBody>
 		<@tform class='form' method='post' name='upload_form' action='jsp/admin/plugins/forms/ManageForms.jsp' params='enctype="multipart/form-data"'>
+			<@input type="hidden" name="token" value = "${token}" />
 			<@formGroup labelKey='#i18n{forms.manageForm.labelImportFile}' helpKey='#i18n{forms.manageForm.labelImportFile.help}' rows=2>
 				<@input type='file' name='json_file'/>
 			</@formGroup>

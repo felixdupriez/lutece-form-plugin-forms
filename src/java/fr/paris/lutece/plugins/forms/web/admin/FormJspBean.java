@@ -36,7 +36,6 @@ package fr.paris.lutece.plugins.forms.web.admin;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -61,9 +60,6 @@ import fr.paris.lutece.plugins.forms.business.FormMessageHome;
 import fr.paris.lutece.plugins.forms.business.FormResponse;
 import fr.paris.lutece.plugins.forms.business.Question;
 import fr.paris.lutece.plugins.forms.business.QuestionHome;
-import fr.paris.lutece.plugins.forms.business.export.FormExportConfig;
-import fr.paris.lutece.plugins.forms.business.export.FormExportConfigHome;
-import fr.paris.lutece.plugins.forms.export.ExportServiceManager;
 import fr.paris.lutece.plugins.forms.service.FormService;
 import fr.paris.lutece.plugins.forms.service.FormsResourceIdService;
 import fr.paris.lutece.plugins.forms.service.json.FormJsonService;
@@ -91,6 +87,7 @@ import fr.paris.lutece.portal.service.message.AdminMessageService;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.portal.service.plugin.PluginService;
 import fr.paris.lutece.portal.service.rbac.RBACService;
+import fr.paris.lutece.portal.service.security.SecurityTokenService;
 import fr.paris.lutece.portal.service.spring.SpringContextService;
 import fr.paris.lutece.portal.service.template.AppTemplateService;
 import fr.paris.lutece.portal.service.util.AppLogService;
@@ -128,13 +125,10 @@ public class FormJspBean extends AbstractJspBean
     private static final String TEMPLATE_MANAGE_FORMS = "/admin/plugins/forms/manage_forms.html";
     private static final String TEMPLATE_CREATE_FORM = "/admin/plugins/forms/create_form.html";
     private static final String TEMPLATE_MODIFY_FORM = "/admin/plugins/forms/modify_form.html";
-    private static final String TEMPLATE_MANAGE_EXPORT = "/admin/plugins/forms/manage_export.html";
     private static final String TEMPLATE_MODIFY_FORM_PUBLICATION = "/admin/plugins/forms/modify_publication.html";
     private static final String TEMPLATE_MANAGE_QUESTION_PUBLICATION = "/admin/plugins/forms/manage_forms_questions_publication.html";
 
     private static final String PARAMETER_PAGE_INDEX = "page_index";
-    private static final String PARAMETER_ID_CONFIG = "id_config";
-    private static final String PARAMETER_EXPORT_CONFIG = "export_config";
     private static final String PARAMETER_JSON_FILE = "json_file";
     private static final String PARAMETER_LOGO = "upload_logo";
     private static final String PARAMETER_ID_ACCESS_CONTROL = "id_accesscontrol";
@@ -156,8 +150,6 @@ public class FormJspBean extends AbstractJspBean
     private static final String MARK_WEBAPP_URL = "webapp_url";
     private static final String MARK_IS_ACTIVE_KIBANA_FORMS_PLUGIN = "is_active_kibana_forms_plugin";
     private static final String MARK_IS_ACTIVE_CAPTCHA = "is_active_captcha";
-    private static final String MARK_EXPORT_LIST = "export_list";
-    private static final String MARK_EXPORT_CONFIG_LIST = "export_config_list";
     private static final String MARK_UPLOAD_HANDLER = "uploadHandler";
     private static final String MARK_ACCESSCONTROL_REF_LIST = "accesscontrol_list";
     private static final String MARK_ACCESSCONTROL_ID = "accesscontrol_id";
@@ -179,19 +171,13 @@ public class FormJspBean extends AbstractJspBean
     private static final String VIEW_MODIFY_FORM = "modifyForm";
     private static final String VIEW_MODIFY_PUBLICATION = "modifyPublication";
     private static final String VIEW_CONFIRM_REMOVE_FORM = "confirmRemoveForm";
-    private static final String VIEW_MANAGE_EXPORT = "manageExport";
-    private static final String VIEW_CONFIG_REMOVE_EXPORT_CONFIG = "confirmRemoveExportConfig";
     private static final String VIEW_MANAGE_QUESTION_PUBLICATION = "manageQuestionPublication";
 
     // Actions
     private static final String ACTION_CREATE_FORM = "createForm";
-    private static final String ACTION_MODIFY_FORM = "modifyForm";
+    public static final String ACTION_MODIFY_FORM = "modifyForm";
     private static final String ACTION_REMOVE_FORM = "removeForm";
     private static final String ACTION_DUPLICATE_FORM = "duplicateForm";
-    private static final String ACTION_CREATE_EXPORT_CONFIG = "createExportConfig";
-    private static final String ACTION_REMOVE_EXPORT_CONFIG = "removeExportConfig";
-    private static final String ACTION_MOVE_UP_EXPORT_CONFIG = "doMoveUpExportConfig";
-    private static final String ACTION_MOVE_DOWN_EXPORT_CONFIG = "doMoveDownExportConfig";
     private static final String ACTION_EXPORT_FORM = "doExportJson";
     private static final String ACTION_IMPORT_FORM = "doImportJson";
     private static final String ACTION_MODIFY_FORM_QUESTIONS_PUBLICATION = "modifyFormQuestions";
@@ -203,8 +189,8 @@ public class FormJspBean extends AbstractJspBean
     private static final String INFO_FORM_COPIED = "forms.info.form.copied";
     private static final String ERROR_FORM_NOT_COPIED = "forms.error.form.not.copied";
     private static final String ERROR_FORM_NOT_IMPORTED = "forms.error.form.not.imported";
-    private static final String MESSAGE_CONFIRM_REMOVE_EXPORT_CONFIG = "forms.modify_form.message.confirmRemoveExportConfig";
-
+    private static final String MESSAGE_ERROR_TOKEN = "Invalid security token";
+        
     // Errors
     private static final String ERROR_FORM_NOT_UPDATED = "forms.error.form.notUpdated";
     private static final String ERROR_FORM_DATE_START_AFTER_END = "forms.error.form.date.startAfterEnd";
@@ -275,7 +261,9 @@ public class FormJspBean extends AbstractJspBean
         model.put( MARK_IS_ACTIVE_KIBANA_FORMS_PLUGIN, PluginService.isPluginEnable( KIBANA_FORMS_PLUGIN_NAME ) );
         model.put( FormsConstants.MARK_TIMESTAMP, strTimespamp );
         model.put( FormsConstants.MARK_INACTIVEBYPASSTOKENS, formIdToToken );
+        model.put( SecurityTokenService.MARK_TOKEN, SecurityTokenService.getInstance( ).getToken( request, ACTION_CREATE_FORM ) );
 
+        
         setPageTitleProperty( EMPTY_STRING );
 
         HtmlTemplate templateList = AppTemplateService.getTemplate( TEMPLATE_MANAGE_FORMS, locale, model );
@@ -295,7 +283,7 @@ public class FormJspBean extends AbstractJspBean
     @View( VIEW_CREATE_FORM )
     public String getCreateForm( HttpServletRequest request ) throws AccessDeniedException
     {
-        checkUserPermission( Form.RESOURCE_TYPE, RBAC.WILDCARD_RESOURCES_ID, FormsResourceIdService.PERMISSION_CREATE, request );
+        checkUserPermission( Form.RESOURCE_TYPE, RBAC.WILDCARD_RESOURCES_ID, FormsResourceIdService.PERMISSION_CREATE, request, ACTION_MODIFY_FORM );
 
         _uploadHandler.removeSessionFiles( request.getSession( ) );
         _form = ( _form != null ) ? _form : new Form( );
@@ -326,7 +314,8 @@ public class FormJspBean extends AbstractJspBean
         model.put( MARK_WEBAPP_URL, AppPathService.getBaseUrl( request ) );
         model.put( MARK_IS_ACTIVE_CAPTCHA, _captchaSecurityService.isAvailable( ) );
         model.put( MARK_UPLOAD_HANDLER, _uploadHandler );
-
+        model.put( SecurityTokenService.MARK_TOKEN, SecurityTokenService.getInstance( ).getToken( request, ACTION_CREATE_FORM ) );
+        
         return getPage( PROPERTY_PAGE_TITLE_CREATE_FORM, TEMPLATE_CREATE_FORM, model );
     }
 
@@ -336,10 +325,13 @@ public class FormJspBean extends AbstractJspBean
      * @param request
      *            The Http Request
      * @return The Jsp URL of the process result
+     * @throws AccessDeniedException 
      */
     @Action( ACTION_CREATE_FORM )
-    public String doCreateForm( HttpServletRequest request )
+    public String doCreateForm( HttpServletRequest request ) throws AccessDeniedException
     {
+        checkUserPermission( Form.RESOURCE_TYPE, RBAC.WILDCARD_RESOURCES_ID, FormsResourceIdService.PERMISSION_CREATE, request, ACTION_CREATE_FORM );
+
         populate( _form, request, request.getLocale( ) );
         populate( _formMessage, request, request.getLocale( ) );
 
@@ -393,13 +385,14 @@ public class FormJspBean extends AbstractJspBean
             return redirectView( request, VIEW_MANAGE_FORMS );
         }
 
-        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY, request );
+        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_DELETE, request, null );
 
         Form formToBeDeleted = FormHome.findByPrimaryKey( nId );
         String strConfirmRemoveMessage = formToBeDeleted.isActive( ) ? MESSAGE_CONFIRM_REMOVE_ACTIVE_FORM : MESSAGE_CONFIRM_REMOVE_FORM;
 
         UrlItem url = new UrlItem( getActionUrl( ACTION_REMOVE_FORM ) );
         url.addParameter( FormsConstants.PARAMETER_ID_FORM, nId );
+        url.addParameter(  SecurityTokenService.MARK_TOKEN, SecurityTokenService.getInstance( ).getToken( request, ACTION_REMOVE_FORM ) );
 
         String strMessageUrl = AdminMessageService.getMessageUrl( request, strConfirmRemoveMessage, url.getUrl( ), AdminMessage.TYPE_CONFIRMATION );
 
@@ -413,11 +406,11 @@ public class FormJspBean extends AbstractJspBean
      * @param request
      *            The Http request
      * @return the html code to confirm
+     * @throws AccessDeniedException 
      */
     @Action( ACTION_DUPLICATE_FORM )
-    public String doDuplicateForm( HttpServletRequest request )
+    public String doDuplicateForm( HttpServletRequest request ) throws AccessDeniedException
     {
-
         int nId = -1;
         String strIdForm;
 
@@ -431,11 +424,11 @@ public class FormJspBean extends AbstractJspBean
             AppLogService.error( ne );
             return redirectView( request, VIEW_MANAGE_FORMS );
         }
+        
+        checkUserPermission( Form.RESOURCE_TYPE, strIdForm,  FormsResourceIdService.PERMISSION_COPY, request, ACTION_CREATE_FORM );
 
-        if ( nId != FormsConstants.DEFAULT_ID_VALUE
-                && RBACService.isAuthorized( Form.RESOURCE_TYPE, strIdForm, FormsResourceIdService.PERMISSION_COPY, (User) getUser( ) ) )
+        if ( nId != FormsConstants.DEFAULT_ID_VALUE )
         {
-
             try
             {
                 String json = FormJsonService.getInstance( ).jsonExportForm( nId );
@@ -476,7 +469,7 @@ public class FormJspBean extends AbstractJspBean
             return redirectView( request, VIEW_MANAGE_FORMS );
         }
 
-        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY, request );
+        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_DELETE, request, ACTION_REMOVE_FORM );
 
         if ( AccessControlService.getInstance( ).isAvailable( ) )
         {
@@ -511,7 +504,7 @@ public class FormJspBean extends AbstractJspBean
             return redirectView( request, VIEW_MANAGE_FORMS );
         }
 
-        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request );
+        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request, null );
 
         Form formToBeModified = FormHome.findByPrimaryKey( nId );
 
@@ -552,7 +545,8 @@ public class FormJspBean extends AbstractJspBean
 
             model.put( MARK_BREADCRUMB_TYPE, BreadcrumbManager.getRefListBreadcrumb( ) );
             model.put( MARK_IS_ACTIVE_CAPTCHA, _captchaSecurityService.isAvailable( ) );
-            
+            model.put( SecurityTokenService.MARK_TOKEN, SecurityTokenService.getInstance( ).getToken( request, ACTION_MODIFY_FORM ) );
+
             ExtendableResourcePluginActionManager.fillModel(request, getUser(), model, "*", FormResponse.RESOURCE_TYPE+ "_" + nId);
             
             return getPage( PROPERTY_PAGE_TITLE_MODIFY_FORM, TEMPLATE_MODIFY_FORM, model );
@@ -561,35 +555,8 @@ public class FormJspBean extends AbstractJspBean
         return redirectView( request, VIEW_MANAGE_FORMS );
     }
 
-    @View( VIEW_MANAGE_EXPORT )
-    public String getManageExport( HttpServletRequest request ) throws AccessDeniedException
-    {
-        int nId = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
-
-        if ( nId == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            return redirectView( request, VIEW_MANAGE_FORMS );
-        }
-
-        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request );
-
-        Form formToBeModified = FormHome.findByPrimaryKey( nId );
-
-        if ( formToBeModified == null )
-        {
-            return redirectView( request, VIEW_MANAGE_FORMS );
-        }
-
-        Map<String, Object> model = getModel( );
-        model.put( MARK_FORM, formToBeModified );
-        model.put( MARK_EXPORT_LIST, ExportServiceManager.getInstance( ).createReferenceListExportConfigOption( formToBeModified, getLocale( ) ) );
-        model.put( MARK_EXPORT_CONFIG_LIST, ExportServiceManager.getInstance( ).createReferenceListExportConfig( formToBeModified, getLocale( ) ) );
-
-        return getPage( PROPERTY_PAGE_TITLE_MODIFY_FORM, TEMPLATE_MANAGE_EXPORT, model );
-    }
-    
     @View( VIEW_MANAGE_QUESTION_PUBLICATION )
-    public String getManageQuestion( HttpServletRequest request ) throws AccessDeniedException
+    public String getManageQuestionPublication( HttpServletRequest request ) throws AccessDeniedException
     {
         int nId = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
 
@@ -598,7 +565,7 @@ public class FormJspBean extends AbstractJspBean
             return redirectView( request, VIEW_MANAGE_FORMS );
         }
 
-        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request );
+        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request, null );
 
         Form formToBeModified = FormHome.findByPrimaryKey( nId );
 
@@ -613,184 +580,9 @@ public class FormJspBean extends AbstractJspBean
         model.put( MARK_FORM, formToBeModified );
         model.put( MARK_QUESTIONLIST, questionList );
         model.put( MARK_FORM_MESSAGE, _formMessage );
+        model.put( SecurityTokenService.MARK_TOKEN, SecurityTokenService.getInstance( ).getToken( request, ACTION_MODIFY_FORM ) );
+        
         return getPage( PROPERTY_PAGE_TITLE_MODIFY_FORM, TEMPLATE_MANAGE_QUESTION_PUBLICATION, model );
-    }
-
-    @Action( ACTION_CREATE_EXPORT_CONFIG )
-    public String doCreateExportConfig( HttpServletRequest request )
-    {
-        int nId = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
-
-        if ( nId == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            return redirectView( request, VIEW_MANAGE_FORMS );
-        }
-
-        String field = request.getParameter( PARAMETER_EXPORT_CONFIG );
-
-        Form formToBeModified = FormHome.findByPrimaryKey( nId );
-
-        if ( formToBeModified == null )
-        {
-            return redirectView( request, VIEW_MANAGE_FORMS );
-        }
-
-        List<FormExportConfig> existingList = ExportServiceManager.getInstance( ).createReferenceListExportConfig( formToBeModified, getLocale( ) );
-
-        FormExportConfig config = new FormExportConfig( );
-        config.setIdForm( nId );
-        config.setField( field );
-        config.setOrder( existingList.size( ) + 1 );
-
-        FormExportConfigHome.create( config );
-
-        Map<String, String> mapParameters = new LinkedHashMap<>( );
-        mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( nId ) );
-
-        return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
-    }
-
-    @View( VIEW_CONFIG_REMOVE_EXPORT_CONFIG )
-    public String getConfirmRemoveExportConfig( HttpServletRequest request )
-    {
-        int idConfig = NumberUtils.toInt( request.getParameter( PARAMETER_ID_CONFIG ), FormsConstants.DEFAULT_ID_VALUE );
-        int idForm = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
-
-        if ( idForm == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            return redirectView( request, VIEW_MANAGE_FORMS );
-        }
-
-        if ( idConfig == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            Map<String, String> mapParameters = new LinkedHashMap<>( );
-            mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( idForm ) );
-
-            return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
-        }
-
-        UrlItem url = new UrlItem( getActionUrl( ACTION_REMOVE_EXPORT_CONFIG ) );
-        url.addParameter( PARAMETER_ID_CONFIG, idConfig );
-        url.addParameter( FormsConstants.PARAMETER_ID_FORM, idForm );
-
-        String strMessageUrl = AdminMessageService.getMessageUrl( request, MESSAGE_CONFIRM_REMOVE_EXPORT_CONFIG, url.getUrl( ),
-                AdminMessage.TYPE_CONFIRMATION );
-
-        return redirect( request, strMessageUrl );
-
-    }
-
-    @Action( ACTION_REMOVE_EXPORT_CONFIG )
-    public String doRemoveExportConfig( HttpServletRequest request )
-    {
-        int idConfig = NumberUtils.toInt( request.getParameter( PARAMETER_ID_CONFIG ), FormsConstants.DEFAULT_ID_VALUE );
-        int idForm = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
-
-        if ( idForm == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            return redirectView( request, VIEW_MANAGE_FORMS );
-        }
-
-        if ( idConfig == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            Map<String, String> mapParameters = new LinkedHashMap<>( );
-            mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( idForm ) );
-
-            return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
-        }
-
-        List<FormExportConfig> existingConfigList = FormExportConfigHome.findByForm( idForm );
-        int newOrder = 0;
-        FormExportConfigHome.removeByForm( idForm );
-        for ( FormExportConfig config : existingConfigList )
-        {
-            if ( config.getId( ) != idConfig )
-            {
-                config.setOrder( ++newOrder );
-                FormExportConfigHome.create( config );
-            }
-        }
-
-        Map<String, String> mapParameters = new LinkedHashMap<>( );
-        mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( idForm ) );
-
-        return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
-    }
-
-    @Action( ACTION_MOVE_UP_EXPORT_CONFIG )
-    public String doMoveUpExportConfig( HttpServletRequest request )
-    {
-        int idConfig = NumberUtils.toInt( request.getParameter( PARAMETER_ID_CONFIG ), FormsConstants.DEFAULT_ID_VALUE );
-        int idForm = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
-
-        if ( idConfig == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            Map<String, String> mapParameters = new LinkedHashMap<>( );
-            mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( idForm ) );
-
-            return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
-        }
-
-        List<FormExportConfig> existingConfigList = FormExportConfigHome.findByForm( idForm );
-
-        FormExportConfig configMovedUp = FormExportConfigHome.findByPrimaryKey( idConfig );
-        int orderMovedUp = configMovedUp.getOrder( );
-
-        for ( FormExportConfig config : existingConfigList )
-        {
-            if ( config.getOrder( ) == orderMovedUp - 1 )
-            {
-                config.setOrder( orderMovedUp );
-                FormExportConfigHome.update( config );
-
-                configMovedUp.setOrder( orderMovedUp - 1 );
-                FormExportConfigHome.update( configMovedUp );
-                break;
-            }
-        }
-
-        Map<String, String> mapParameters = new LinkedHashMap<>( );
-        mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( idForm ) );
-
-        return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
-    }
-
-    @Action( ACTION_MOVE_DOWN_EXPORT_CONFIG )
-    public String doMoveDownExportConfig( HttpServletRequest request )
-    {
-        int idConfig = NumberUtils.toInt( request.getParameter( PARAMETER_ID_CONFIG ), FormsConstants.DEFAULT_ID_VALUE );
-        int idForm = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
-
-        if ( idConfig == FormsConstants.DEFAULT_ID_VALUE )
-        {
-            Map<String, String> mapParameters = new LinkedHashMap<>( );
-            mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( idForm ) );
-
-            return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
-        }
-
-        List<FormExportConfig> existingConfigList = FormExportConfigHome.findByForm( idForm );
-
-        FormExportConfig configMovedDown = FormExportConfigHome.findByPrimaryKey( idConfig );
-        int orderMovedDown = configMovedDown.getOrder( );
-
-        for ( FormExportConfig config : existingConfigList )
-        {
-            if ( config.getOrder( ) == orderMovedDown + 1 )
-            {
-                config.setOrder( orderMovedDown );
-                FormExportConfigHome.update( config );
-
-                configMovedDown.setOrder( orderMovedDown + 1 );
-                FormExportConfigHome.update( configMovedDown );
-                break;
-            }
-        }
-
-        Map<String, String> mapParameters = new LinkedHashMap<>( );
-        mapParameters.put( FormsConstants.PARAMETER_ID_FORM, String.valueOf( idForm ) );
-
-        return redirect( request, VIEW_MANAGE_EXPORT, mapParameters );
     }
 
     /**
@@ -828,7 +620,7 @@ public class FormJspBean extends AbstractJspBean
         {
             return redirectView( request, VIEW_MANAGE_FORMS );
         }
-        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request );
+        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request, null );
 
         Form formToBeModified = FormHome.findByPrimaryKey( nId );
 
@@ -841,7 +633,8 @@ public class FormJspBean extends AbstractJspBean
             model.put( MARK_FORM_MESSAGE, _formMessage );
             model.put( MARK_FORM, formToBeModified );
             model.put( MARK_LOCALE, request.getLocale( ).getLanguage( ) );
-
+            model.put( SecurityTokenService.MARK_TOKEN, SecurityTokenService.getInstance( ).getToken( request, ACTION_MODIFY_FORM ) );
+            
             return getPage( PROPERTY_PAGE_TITLE_MODIFY_FORM, TEMPLATE_MODIFY_FORM_PUBLICATION, model );
         }
 
@@ -873,7 +666,7 @@ public class FormJspBean extends AbstractJspBean
             return redirectView( request, VIEW_MANAGE_FORMS );
         }
 
-        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request );
+        checkUserPermission( Form.RESOURCE_TYPE, String.valueOf( nId ), FormsResourceIdService.PERMISSION_MODIFY_PARAMS, request, ACTION_MODIFY_FORM );
 
         _form = FormHome.findByPrimaryKey( nId );
 
@@ -938,8 +731,13 @@ public class FormJspBean extends AbstractJspBean
      *             AccessDeniedException if the user isn'y authorized to process the modification of params of a form
      */
     @Action( ACTION_MODIFY_FORM_QUESTIONS_PUBLICATION )
-    public String doModifyFormQuestions( HttpServletRequest request ) throws AccessDeniedException
+    public String doModifyFormQuestionsPublication( HttpServletRequest request ) throws AccessDeniedException
     {
+        // CSRF Token control
+        if ( !SecurityTokenService.getInstance( ).validate( request, ACTION_MODIFY_FORM ) )
+        {
+            throw new AccessDeniedException( MESSAGE_ERROR_TOKEN );
+        }
     	int nId = Integer.parseInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ) );
         
         Form formToBeModified = FormHome.findByPrimaryKey( nId );
@@ -1018,8 +816,13 @@ public class FormJspBean extends AbstractJspBean
     }
 
     @Action( ACTION_EXPORT_FORM )
-    public void doExportJson( HttpServletRequest request )
+    public void doExportJson( HttpServletRequest request ) throws AccessDeniedException
     {
+        // CSRF Token control
+        if ( !SecurityTokenService.getInstance( ).validate( request, null ) )
+        {
+            throw new AccessDeniedException( MESSAGE_ERROR_TOKEN );
+        }
         int nId = NumberUtils.toInt( request.getParameter( FormsConstants.PARAMETER_ID_FORM ), FormsConstants.DEFAULT_ID_VALUE );
 
         if ( nId == FormsConstants.DEFAULT_ID_VALUE )
@@ -1042,8 +845,9 @@ public class FormJspBean extends AbstractJspBean
     }
 
     @Action( ACTION_IMPORT_FORM )
-    public String doImportJson( HttpServletRequest request )
+    public String doImportJson( HttpServletRequest request ) throws AccessDeniedException
     {
+        checkUserPermission( Form.RESOURCE_TYPE, RBAC.WILDCARD_RESOURCES_ID, FormsResourceIdService.PERMISSION_CREATE, request, ACTION_CREATE_FORM );
         MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
         FileItem fileItem = multipartRequest.getFile( PARAMETER_JSON_FILE );
         try

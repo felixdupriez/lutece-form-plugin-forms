@@ -43,6 +43,7 @@ import fr.paris.lutece.plugins.forms.util.FormsConstants;
 import fr.paris.lutece.portal.service.admin.AccessDeniedException;
 import fr.paris.lutece.portal.service.admin.AdminUserService;
 import fr.paris.lutece.portal.service.rbac.RBACService;
+import fr.paris.lutece.portal.service.security.SecurityTokenService;
 import fr.paris.lutece.portal.service.util.AppPathService;
 import fr.paris.lutece.portal.service.util.AppPropertiesService;
 import fr.paris.lutece.portal.util.mvc.admin.MVCAdminJspBean;
@@ -61,6 +62,7 @@ public abstract class AbstractJspBean extends MVCAdminJspBean
     private static final long serialVersionUID = 3421909824044642013L;
 
     protected static final String UNAUTHORIZED = "Unauthorized";
+    protected static final String MESSAGE_ERROR_TOKEN = "Invalid security token";
 
     // Properties
     protected static final String PROPERTY_DEFAULT_LIST_ITEM_PER_PAGE = "forms.itemsPerPage";
@@ -198,9 +200,14 @@ public abstract class AbstractJspBean extends MVCAdminJspBean
      * @throws AccessDeniedException
      *             An access denied exception
      */
-    protected void checkUserPermission( String strRessourceType, String strResource, String strPermissionName, HttpServletRequest request )
+    protected void checkUserPermission( String strRessourceType, String strResource, String strPermissionName, HttpServletRequest request, String actionCsrf )
             throws AccessDeniedException
     {
+        // CSRF Token control
+        if ( actionCsrf != null && !SecurityTokenService.getInstance( ).validate( request, actionCsrf ) )
+        {
+            throw new AccessDeniedException( MESSAGE_ERROR_TOKEN );
+        }
         if ( !RBACService.isAuthorized( strRessourceType, strResource, strPermissionName, (User) AdminUserService.getAdminUser( request ) ) )
         {
             throw new AccessDeniedException( UNAUTHORIZED );
