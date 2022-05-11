@@ -96,9 +96,11 @@ import fr.paris.lutece.portal.service.security.SecurityService;
 import fr.paris.lutece.portal.service.security.SecurityTokenService;
 import fr.paris.lutece.portal.service.security.UserNotSignedException;
 import fr.paris.lutece.portal.service.spring.SpringContextService;
+import fr.paris.lutece.portal.service.util.AppPathService;
 import fr.paris.lutece.portal.service.util.AppPropertiesService;
 import fr.paris.lutece.portal.util.mvc.commons.annotations.Action;
 import fr.paris.lutece.portal.util.mvc.commons.annotations.View;
+import fr.paris.lutece.portal.util.mvc.utils.MVCUtils;
 import fr.paris.lutece.portal.util.mvc.xpage.MVCApplication;
 import fr.paris.lutece.portal.util.mvc.xpage.annotations.Controller;
 import fr.paris.lutece.portal.web.upload.MultipartHttpServletRequest;
@@ -115,7 +117,7 @@ public class FormXPage extends MVCApplication
 {
     protected static final String XPAGE_NAME = "forms";
     private static final long serialVersionUID = -8380962697376893817L;
-    
+
     // Messages
     protected static final String MESSAGE_PAGE_TITLE = "forms.xpage.form.view.pageTitle";
     protected static final String MESSAGE_PATH = "forms.xpage.form.view.pagePathLabel";
@@ -134,7 +136,7 @@ public class FormXPage extends MVCApplication
     private static final String MESSAGE_SUMMARY_TITLE = "forms.summary.title";
     private static final String MESSAGE_WARNING_INACTIVE_STATE_BYPASSED = "forms.warning.inactive.state.bypassed";
     private static final String MESSAGE_ERROR_TOKEN = "Invalid security token";
-    
+
     // Views
     private static final String VIEW_STEP = "stepView";
     private static final String VIEW_LIST_FORM = "listForm";
@@ -338,7 +340,7 @@ public class FormXPage extends MVCApplication
             {
                 _breadcrumb = SpringContextService.getBean( form.getBreadcrumbName( ) );
             }
-            
+
             initFormResponseManager( request, form );
             if ( _formResponseManager.getFormResponse( ).isFromSave( ) )
             {
@@ -351,16 +353,17 @@ public class FormXPage extends MVCApplication
 
                 model.put( FormsConstants.MARK_INFO, I18nService.getLocalizedString( MESSAGE_LOAD_BACKUP, args, getLocale( request ) ) );
             }
-            
+
             if ( _stepDisplayTree == null || _currentStep.getId( ) != _stepDisplayTree.getStep( ).getId( ) )
             {
                 _stepDisplayTree = new StepDisplayTree( _currentStep.getId( ), _formResponseManager.getFormResponse( ) );
                 _formResponseManager.add( _currentStep );
             }
-            
+
             if ( !_formResponseManager.getFormResponse( ).isFromSave( ) && !bypassInactiveState( form, request ) )
             {
-                XPage accessControlPage = AccessControlService.getInstance( ).doExecuteAccessControl( request, form.getId( ), Form.RESOURCE_TYPE, _formResponseManager );
+                XPage accessControlPage = AccessControlService.getInstance( ).doExecuteAccessControl( request, form.getId( ), Form.RESOURCE_TYPE,
+                        _formResponseManager );
                 if ( accessControlPage != null )
                 {
                     return accessControlPage;
@@ -387,7 +390,7 @@ public class FormXPage extends MVCApplication
 
         return xPage;
     }
-    
+
     private void initFormResponseManager( HttpServletRequest request, Form form )
     {
         LuteceUser user = SecurityService.getInstance( ).getRegisteredUser( request );
@@ -699,7 +702,7 @@ public class FormXPage extends MVCApplication
      *             Exception
      * @throws UserNotSignedException
      *             Exception
-     * @throws AccessDeniedException 
+     * @throws AccessDeniedException
      */
     @Action( value = ACTION_SAVE_FORM_RESPONSE )
     public synchronized XPage doSaveFormResponse( HttpServletRequest request ) throws SiteMessageException, UserNotSignedException, AccessDeniedException
@@ -745,7 +748,7 @@ public class FormXPage extends MVCApplication
      *             Exception
      * @throws UserNotSignedException
      *             Exception
-     * @throws AccessDeniedException 
+     * @throws AccessDeniedException
      */
     @Action( value = ACTION_SAVE_FORM_RESPONSE_SUMMARY )
     public synchronized XPage doSaveFormResponseSummary( HttpServletRequest request ) throws SiteMessageException, UserNotSignedException, AccessDeniedException
@@ -755,7 +758,7 @@ public class FormXPage extends MVCApplication
         {
             throw new AccessDeniedException( MESSAGE_ERROR_TOKEN );
         }
-        
+
         Form form = null;
         try
         {
@@ -806,11 +809,10 @@ public class FormXPage extends MVCApplication
             addWarning( MESSAGE_WARNING_INACTIVE_STATE_BYPASSED, getLocale( request ) );
         }
 
-        init( request );
-
         FormMessage formMessage = FormMessageHome.findByForm( form.getId( ) );
         boolean bIsEndMessageDisplayed = formMessage.getEndMessageDisplay( );
-        String strBackUrl = getBackUrl( form, bIsEndMessageDisplayed );
+        String strBackUrl = getBackUrl( form, bIsEndMessageDisplayed, _formResponseManager.getFormResponse( ).getId( ) );
+        init( request );
 
         if ( formMessage.getEndMessageDisplay( ) )
         {
@@ -892,7 +894,7 @@ public class FormXPage extends MVCApplication
      *            {@code true} if the end message is displayed, {@code false} otherwise
      * @return the back URL
      */
-    private String getBackUrl( Form form, boolean bIsEndMessageDisplayed )
+    private String getBackUrl( Form form, boolean bIsEndMessageDisplayed, int nIdFormResponse )
     {
         if ( StringUtils.isNotEmpty( form.getReturnUrl( ) ) )
         {
@@ -902,14 +904,22 @@ public class FormXPage extends MVCApplication
         {
             UrlItem url = null;
 
-            if ( bIsEndMessageDisplayed )
+            if ( bIsEndMessageDisplayed && form.isAuthentificationNeeded( ) )
             {
-                url = new UrlItem( getViewFullUrl( VIEW_STEP ) );
+                url = new UrlItem( AppPathService.getPortalUrl( ) );
+                url.addParameter( MVCUtils.PARAMETER_PAGE, FormResponseXPage.XPAGE_NAME );
+                url.addParameter( MVCUtils.PARAMETER_VIEW, FormResponseXPage.VIEW_FORM_RESPONSE );
+                url.addParameter( FormsConstants.PARAMETER_ID_RESPONSE, nIdFormResponse );
             }
             else
-            {
-                url = new UrlItem( getViewUrl( VIEW_STEP ) );
-            }
+                if ( bIsEndMessageDisplayed )
+                {
+                    url = new UrlItem( getViewFullUrl( VIEW_STEP ) );
+                }
+                else
+                {
+                    url = new UrlItem( getViewUrl( VIEW_STEP ) );
+                }
 
             url.addParameter( FormsConstants.PARAMETER_ID_FORM, form.getId( ) );
 
@@ -951,23 +961,21 @@ public class FormXPage extends MVCApplication
                     question.setIsVisible( false );
                 }
             }
-            if ( !question.getEntry( ).isOnlyDisplayInBack( ) )
+            IEntryDataService entryDataService = EntryServiceManager.getInstance( ).getEntryDataService( question.getEntry( ).getEntryType( ) );
+            if ( question.getEntry( ).isOnlyDisplayInBack( ) || entryDataService == null )
             {
-                IEntryDataService entryDataService = EntryServiceManager.getInstance( ).getEntryDataService( question.getEntry( ).getEntryType( ) );
-                if ( entryDataService != null )
-                {
-
-                    FormQuestionResponse formQuestionResponse = entryDataService.createResponseFromRequest( question, request,
-                            question.isVisible( ) && bValidateQuestionStep );
-
-                    if ( formQuestionResponse.hasError( ) )
-                    {
-                        bValidStep = false;
-                    }
-
-                    listResponsesTemp.add( formQuestionResponse );
-                }
+                continue;
             }
+
+            FormQuestionResponse formQuestionResponse = entryDataService.createResponseFromRequest( question, request,
+                    question.isVisible( ) && bValidateQuestionStep );
+
+            if ( formQuestionResponse.hasError( ) )
+            {
+                bValidStep = false;
+            }
+
+            listResponsesTemp.add( formQuestionResponse );
         }
 
         _formResponseManager.addResponses( listResponsesTemp );
@@ -988,7 +996,7 @@ public class FormXPage extends MVCApplication
      *             Exception
      * @throws UserNotSignedException
      *             Exception
-     * @throws AccessDeniedException 
+     * @throws AccessDeniedException
      */
     @Action( value = ACTION_SAVE_STEP )
     public XPage doSaveStep( HttpServletRequest request ) throws SiteMessageException, UserNotSignedException, AccessDeniedException
@@ -998,7 +1006,7 @@ public class FormXPage extends MVCApplication
         {
             throw new AccessDeniedException( MESSAGE_ERROR_TOKEN );
         }
-        
+
         try
         {
             boolean bSessionLost = isSessionLost( );
@@ -1099,7 +1107,7 @@ public class FormXPage extends MVCApplication
      *             Exception
      * @throws UserNotSignedException
      *             Exception
-     * @throws AccessDeniedException 
+     * @throws AccessDeniedException
      */
     @Action( value = ACTION_SAVE_FOR_BACKUP )
     public XPage doSaveForBackup( HttpServletRequest request ) throws SiteMessageException, UserNotSignedException, AccessDeniedException
@@ -1109,11 +1117,11 @@ public class FormXPage extends MVCApplication
         {
             throw new AccessDeniedException( MESSAGE_ERROR_TOKEN );
         }
-        
+
         Form form = null;
         try
         {
-            
+
             boolean bSessionLost = isSessionLost( );
             form = findFormFrom( request );
             if ( bSessionLost )
@@ -1159,7 +1167,7 @@ public class FormXPage extends MVCApplication
      *             Exception
      * @throws UserNotSignedException
      *             Exception
-     * @throws AccessDeniedException 
+     * @throws AccessDeniedException
      */
     @Action( value = ACTION_RESET_BACKUP )
     public XPage doResetBackup( HttpServletRequest request ) throws SiteMessageException, UserNotSignedException, AccessDeniedException
@@ -1170,7 +1178,7 @@ public class FormXPage extends MVCApplication
             throw new AccessDeniedException( MESSAGE_ERROR_TOKEN );
         }
         Form form = null;
-        
+
         try
         {
             form = findFormFrom( request );
@@ -1410,7 +1418,7 @@ public class FormXPage extends MVCApplication
             _formService.saveForm( form, formResponse );
         }
         AccessControlService.getInstance( ).cleanSessionData( request, form.getId( ), Form.RESOURCE_TYPE );
-        
+
         _formService.processFormAction( form, formResponse );
     }
 

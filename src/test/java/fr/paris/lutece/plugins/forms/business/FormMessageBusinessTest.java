@@ -33,65 +33,36 @@
  */
 package fr.paris.lutece.plugins.forms.business;
 
-/**
- * This is the business class for the object FormCategory
- */
-public class FormCategory
+import fr.paris.lutece.test.LuteceTestCase;
+
+public class FormMessageBusinessTest extends LuteceTestCase
 {
-    private int _nId;
 
-    private String _strCode;
-
-    private String _strName;
-
-    /**
-     * @return the _nId
-     */
-    public int getId( )
+    public void testCRUD( )
     {
-        return _nId;
-    }
+        FormMessage formMessage = new FormMessage( );
+        formMessage.setIdForm( 1 );
+        formMessage.setEndMessageDisplay( true );
+        formMessage.setEndMessage( "Message" );
 
-    /**
-     * @param nId
-     *            the nId to set
-     */
-    public void setId( int nId )
-    {
-        this._nId = nId;
-    }
+        FormMessageHome.create( formMessage );
 
-    /**
-     * @return the _strCode
-     */
-    public String getCode( )
-    {
-        return _strCode;
-    }
+        FormMessage loaded = FormMessageHome.findByForm( formMessage.getId( ) );
+        assertNotNull( loaded );
+        assertEquals( formMessage.getIdForm( ), loaded.getIdForm( ) );
+        assertEquals( formMessage.getEndMessageDisplay( ), loaded.getEndMessageDisplay( ) );
+        assertEquals( formMessage.getEndMessage( ), loaded.getEndMessage( ) );
 
-    /**
-     * @param code
-     *            the code to set
-     */
-    public void setCode( String code )
-    {
-        this._strCode = code;
-    }
+        formMessage.setEndMessage( "Message 2" );
+        FormMessageHome.update( formMessage );
 
-    /**
-     * @return the _strName
-     */
-    public String getName( )
-    {
-        return _strName;
-    }
+        loaded = FormMessageHome.findByForm( formMessage.getId( ) );
+        assertNotNull( loaded );
+        assertEquals( formMessage.getEndMessage( ), loaded.getEndMessage( ) );
 
-    /**
-     * @param name
-     *            the name to set
-     */
-    public void setName( String name )
-    {
-        this._strName = name;
+        FormMessageHome.remove( formMessage.getId( ) );
+
+        loaded = FormMessageHome.findByForm( formMessage.getId( ) );
+        assertNull( loaded );
     }
 }

@@ -33,65 +33,20 @@
  */
 package fr.paris.lutece.plugins.forms.business;
 
-/**
- * This is the business class for the object FormCategory
- */
-public class FormCategory
+import java.util.List;
+import java.util.Locale;
+
+import org.apache.commons.collections4.CollectionUtils;
+
+import fr.paris.lutece.plugins.forms.service.FormsPlugin;
+import fr.paris.lutece.test.LuteceTestCase;
+
+public class FormActionBusinessTest extends LuteceTestCase
 {
-    private int _nId;
-
-    private String _strCode;
-
-    private String _strName;
-
-    /**
-     * @return the _nId
-     */
-    public int getId( )
+    public void testSelect( )
     {
-        return _nId;
-    }
-
-    /**
-     * @param nId
-     *            the nId to set
-     */
-    public void setId( int nId )
-    {
-        this._nId = nId;
-    }
-
-    /**
-     * @return the _strCode
-     */
-    public String getCode( )
-    {
-        return _strCode;
-    }
-
-    /**
-     * @param code
-     *            the code to set
-     */
-    public void setCode( String code )
-    {
-        this._strCode = code;
-    }
-
-    /**
-     * @return the _strName
-     */
-    public String getName( )
-    {
-        return _strName;
-    }
-
-    /**
-     * @param name
-     *            the name to set
-     */
-    public void setName( String name )
-    {
-        this._strName = name;
+        List<FormAction> allActions = FormActionHome.selectAllFormActions( FormsPlugin.getPlugin( ), Locale.getDefault( ) );
+        assertNotNull( allActions );
+        assertTrue( CollectionUtils.isNotEmpty( allActions ) );
     }
 }
