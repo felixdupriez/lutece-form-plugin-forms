@@ -1,7 +1,15 @@
 <#if filter_list?has_content>
-<#assign params=''>
-<#if filter_name != 'search_form'><#assign params='onchange="this.form.submit()"'></#if>
-<@formGroup formStyle='inline' labelClass='sr-only' class='forms-filter' labelFor=filter_name labelKey='${filter_label!}'>
-	<@select name=filter_name id=filter_name  default_value='${filter_list_value!-1}' items=filter_list params=params />
-</@formGroup>
+	<#assign params=''>
+	<#if filter_name != 'search_form'>
+		<#assign params='onchange="this.form.submit()" multiple'>
+	</#if>
+	<@formGroup formStyle='inline' labelClass='sr-only' class='forms-filter' labelFor=filter_name labelKey='${filter_label!}'>
+		<@select name=filter_name id=filter_name items=null class='form-select selectpicker' params='onchange="this.form.submit()"' multiple=1>
+			<#list filter_list as item>
+				<#assign optSelected=false >
+				<#if filter_list_value?has_content && filter_list_value?split(";")?seq_contains(item.code) ><#assign optSelected=true ></#if>
+				<@option label=item.name! value=item.code selected=optSelected  />
+			</#list>
+		</@select>
+	</@formGroup>
 </#if>
