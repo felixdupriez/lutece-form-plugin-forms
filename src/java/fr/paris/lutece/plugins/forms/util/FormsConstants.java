@@ -85,7 +85,6 @@ public final class FormsConstants
     public static final String MARK_FORM_USERASSIGNMENT_ENABLED = "userassignment_enabled";
     public static final String MARK_MULTIVIEW_CONFIG_ACTION = "multiviewConfigAction";
     public static final String MARK_MULTIVIEW_EXPORT_ACTION = "multiviewExportAction";
-    public static final String MARK_CAN_BE_FILTERED = "can_be_filtered";
     public static final String MARK_REFERENCE_LIST_SELECT = "ref_list_select";
     public static final String MARK_ANONYMIZATION_HELP = "anonymization_help_message";
     public static final String MARK_BREADCRUMBS = "breadcrumb_template";
@@ -159,6 +158,9 @@ public final class FormsConstants
     public static final String PARAMETER_VIEW_MODIFY_CONTROL = "view_modifyControl";
     public static final String PARAMETRE_VALIDATOR_LISTQUESTION_NAME = "forms_listQuestionValidator";
     public static final String PARAMETER_MULTIVIEW_ORDER = "multiview_column_order";
+    
+    public static final String PARAMETER_USED_CORRECT_RESPONSE = "used_in_correct_form_response";
+    public static final String PARAMETER_USED_COMPLETE_RESPONSE = "used_in_complete_form_response";
 
     // Jsp
     public static final String JSP_MANAGE_STEPS = "jsp/admin/plugins/forms/ManageSteps.jsp";
